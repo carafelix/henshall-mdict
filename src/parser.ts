@@ -1,46 +1,40 @@
-export interface DictionaryEntry {
-  id: string;
-  year: string;
-  level: string;
-  kanji: string;
-  reading: string;
-  meaning: string;
-  strokes: string;
-  examples: Example[];
-  etymology: string;
-  mnemonic: string;
-  images: string[];
-}
-
-export interface Example {
-  word: string;
-  reading: string;
-  meaning: string;
-}
-
 export class DictionaryParser {
   private currentEntry: DictionaryEntry | null = null;
   private entries: DictionaryEntry[] = [];
 
   parseHTML(htmlContent: string): DictionaryEntry[] {
-    // Split by entry separator
-    const entryBlocks = htmlContent.split(/<p class="bor"><\/p>\s*/);
+    // Split by the entry separator
+    const entryBlocks = htmlContent.split(/\s*<p class="bor"><\/p>\s*/);
+    
+    console.log(`Found ${entryBlocks.length} potential entry blocks`);
     
     for (const block of entryBlocks) {
-      if (!block.trim()) continue;
+      const trimmedBlock = block.trim();
+      if (!trimmedBlock) continue;
       
-      this.currentEntry = this.createEmptyEntry();
-      this.parseEntryBlock(block);
-      this.entries.push(this.currentEntry);
+      // Check if this block contains actual entry content
+      if (this.isValidEntryBlock(trimmedBlock)) {
+        this.currentEntry = this.createEmptyEntry();
+        this.parseEntryBlock(trimmedBlock);
+        
+        // Only add if we found essential data (kanji)
+        if (this.currentEntry.kanji) {
+          this.entries.push(this.currentEntry);
+        }
+      }
     }
     
     return this.entries;
   }
 
+  private isValidEntryBlock(block: string): boolean {
+    return block.includes('textStyle48') || block.includes('textStyle46');
+  }
+
   private createEmptyEntry(): DictionaryEntry {
     return {
       id: "",
-      year: "",
+      number: "", // Changed from year to number
       level: "",
       kanji: "",
       reading: "",
@@ -55,15 +49,17 @@ export class DictionaryParser {
 
   private parseEntryBlock(block: string): void {
     const lines = block.split('\n');
+    let inEtymologySection = false;
+    let etymologyContent = "";
     
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
 
-      // Parse year/number
-      const yearMatch = trimmedLine.match(/<span class="textStyle47a">(\d+)<\/span>/);
-      if (yearMatch) {
-        this.currentEntry!.year = yearMatch[1];
+      // Parse entry number (not year!)
+      const numberMatch = trimmedLine.match(/<span class="textStyle47a">(\d+)<\/span>/);
+      if (numberMatch) {
+        this.currentEntry!.number = numberMatch[1];
         continue;
       }
 
@@ -75,7 +71,7 @@ export class DictionaryParser {
       }
 
       // Parse kanji and ID
-      const kanjiMatch = trimmedLine.match(/<span class="textStyle48" id="([^"]+)">([^<]+)<\/span>/);
+      const kanjiMatch = trimmedLine.match(/<span class="textStyle48"[^>]*id="([^"]+)">([^<]+)<\/span>/);
       if (kanjiMatch) {
         this.currentEntry!.id = kanjiMatch[1];
         this.currentEntry!.kanji = kanjiMatch[2];
@@ -96,10 +92,10 @@ export class DictionaryParser {
         continue;
       }
 
-      // Parse strokes - store only the digit
+      // Parse strokes
       const strokesMatch = trimmedLine.match(/<span class="textStyle44">(\d+)\s*strokes?<\/span>/i);
       if (strokesMatch) {
-        this.currentEntry!.strokes = strokesMatch[1]; // Store only the number
+        this.currentEntry!.strokes = strokesMatch[1];
         continue;
       }
 
@@ -109,21 +105,48 @@ export class DictionaryParser {
         continue;
       }
 
-      // Parse etymology (handle multi-line content)
-      if (trimmedLine.includes('textStyle44') && 
-          (trimmedLine.includes('Seal') || 
-           trimmedLine.includes('References:') || 
-           trimmedLine.includes('Originally'))) {
-        this.parseEtymologyLine(trimmedLine);
+      // Parse etymology - improved detection
+      if (trimmedLine.includes('indent2') && trimmedLine.includes('textStyle44') && 
+          !trimmedLine.includes('Mnemonic') &&
+          (trimmedLine.includes('OBI') || 
+           trimmedLine.includes('Originally') || 
+           trimmedLine.includes('Seal') ||
+           trimmedLine.includes('References:'))) {
+        inEtymologySection = true;
+        etymologyContent = this.extractTextContent(trimmedLine);
         continue;
       }
 
-      // Parse mnemonic
-      const mnemonicMatch = trimmedLine.match(/<span class="textStyle45">Mnemonic:<\/span> <span class="textStyle44">([^<]+)<\/span>/);
-      if (mnemonicMatch) {
-        this.currentEntry!.mnemonic = mnemonicMatch[1];
+      // Continue etymology section
+      if (inEtymologySection && trimmedLine.includes('textStyle44') && 
+          !trimmedLine.includes('Mnemonic')) {
+        etymologyContent += " " + this.extractTextContent(trimmedLine);
+        
+        // Extract images from etymology lines
+        const imgMatches = [...trimmedLine.matchAll(/<img[^>]*src="([^"]*)"[^>]*>/g)];
+        for (const match of imgMatches) {
+          this.currentEntry!.images.push(match[1]);
+        }
         continue;
       }
+
+      // End etymology section
+      if (inEtymologySection && trimmedLine.includes('Mnemonic')) {
+        inEtymologySection = false;
+        this.currentEntry!.etymology = etymologyContent.replace(/\s+/g, ' ').trim();
+        etymologyContent = "";
+      }
+
+      // Parse mnemonic - improved to handle different formats
+      if (trimmedLine.includes('Mnemonic')) {
+        this.parseMnemonicLine(trimmedLine);
+        continue;
+      }
+    }
+
+    // Final cleanup
+    if (inEtymologySection && etymologyContent) {
+      this.currentEntry!.etymology = etymologyContent.replace(/\s+/g, ' ').trim();
     }
   }
 
@@ -142,21 +165,52 @@ export class DictionaryParser {
     }
   }
 
-  private parseEtymologyLine(line: string): void {
-    // Extract images
-    const imgMatches = [...line.matchAll(/<img[^>]*src="([^"]*)"[^>]*>/g)];
-    for (const match of imgMatches) {
-      this.currentEntry!.images.push(match[1]);
-    }
-
-    // Clean HTML tags for text content
-    let cleanText = line.replace(/<[^>]+>/g, ' ');
-    cleanText = cleanText.replace(/\s+/g, ' ').trim();
-
-    if (this.currentEntry!.etymology) {
-      this.currentEntry!.etymology += " " + cleanText;
+  private parseMnemonicLine(line: string): void {
+    // Handle different mnemonic formats:
+    // Format 1: <span class="textStyle45">Mnemonic:</span> <span class="textStyle44">TEXT</span>
+    // Format 2: <span class="textStyle45">Mnemonic</span><span class="textStyle44">TEXT</span>
+    
+    let mnemonicText = "";
+    
+    // Try format 1 first
+    const format1Match = line.match(/<span class="textStyle45">Mnemonic:<\/span> <span class="textStyle44">([^<]+)<\/span>/);
+    if (format1Match) {
+      mnemonicText = format1Match[1];
     } else {
-      this.currentEntry!.etymology = cleanText;
+      // Try format 2 - extract all textStyle44 content after "Mnemonic"
+      const textStyle44Matches = [...line.matchAll(/<span class="textStyle44">([^<]+)<\/span>/g)];
+      if (textStyle44Matches.length > 0) {
+        // Take the last textStyle44 content (usually the mnemonic text)
+        mnemonicText = textStyle44Matches[textStyle44Matches.length - 1][1];
+      }
+    }
+    
+    if (mnemonicText) {
+      this.currentEntry!.mnemonic = mnemonicText.trim();
     }
   }
+
+  private extractTextContent(html: string): string {
+    // Remove all HTML tags and clean up whitespace
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+}
+
+export interface DictionaryEntry {
+  id: string;
+  number: string; // Changed from year to number
+  level: string;
+  kanji: string;
+  reading: string;
+  meaning: string;
+  strokes: string;
+  examples: Example[];
+  etymology: string;
+  mnemonic: string;
+  images: string[];
+}
+export interface Example {
+  word: string;
+  reading: string;
+  meaning: string;
 }

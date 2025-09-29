@@ -18,7 +18,7 @@ export class DictionaryExporter {
         entry.reading,
         entry.meaning,
         entry.level,
-        entry.year,
+        entry.number,
         entry.strokes,
         examplesStr,
         entry.etymology || '',
@@ -29,7 +29,7 @@ export class DictionaryExporter {
 
     // Add header
     const header = [
-      'Kanji', 'Reading', 'Meaning', 'Level', 'Year', 
+      'Kanji', 'Reading', 'Meaning', 'Level', 'Number', 
       'Strokes', 'Examples', 'Etymology', 'Mnemonic', 'Images'
     ].join('\t');
     
@@ -124,8 +124,8 @@ sametypesequence=m
     if (entry.reading) lines.push(`Reading: ${entry.reading}`);
     if (entry.meaning) lines.push(`Meaning: ${entry.meaning}`);
     if (entry.strokes) lines.push(`Strokes: ${entry.strokes}`);
-    if (entry.level) lines.push(`Level: ${entry.level}`);
-    if (entry.year) lines.push(`Number: ${entry.year}`);
+    // REMOVED: Level line
+    if (entry.number) lines.push(`Number: ${entry.number}`);
     
     if (entry.examples.length > 0) {
       lines.push("\nExamples:");
@@ -134,11 +134,12 @@ sametypesequence=m
       });
     }
     
-    if (entry.etymology) {
+    // FIXED: Always show etymology and mnemonic if they exist
+    if (entry.etymology && entry.etymology.trim()) {
       lines.push(`\nEtymology: ${entry.etymology}`);
     }
     
-    if (entry.mnemonic) {
+    if (entry.mnemonic && entry.mnemonic.trim()) {
       lines.push(`\nMnemonic: ${entry.mnemonic}`);
     }
     
@@ -161,7 +162,7 @@ sametypesequence=m
       meaning: entry.meaning,
       level: entry.level,
       stroke_count: entry.strokes,
-      number: entry.year,
+      number: entry.number,
       examples: entry.examples,
       etymology: entry.etymology,
       mnemonic: entry.mnemonic,

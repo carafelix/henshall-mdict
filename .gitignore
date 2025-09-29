@@ -1,0 +1,5 @@
+output/stardict
+*.tsv
+*.json
+*.dict
+*.idx
