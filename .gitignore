@@ -3,3 +3,4 @@ output/stardict
 *.json
 *.dict
 *.idx
+*-ifo
