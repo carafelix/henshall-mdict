@@ -52,6 +52,9 @@ export class DictionaryParser {
     let inEtymologySection = false;
     let etymologyContent = "";
     
+    // Extract all images from the entire block first
+    this.extractAllImagesFromBlock(block);
+    
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
@@ -121,12 +124,6 @@ export class DictionaryParser {
       if (inEtymologySection && trimmedLine.includes('textStyle44') && 
           !trimmedLine.includes('Mnemonic')) {
         etymologyContent += " " + this.extractTextContent(trimmedLine);
-        
-        // Extract images from etymology lines
-        const imgMatches = [...trimmedLine.matchAll(/<img[^>]*src="([^"]*)"[^>]*>/g)];
-        for (const match of imgMatches) {
-          this.currentEntry!.images.push(match[1]);
-        }
         continue;
       }
 
@@ -147,6 +144,14 @@ export class DictionaryParser {
     // Final cleanup
     if (inEtymologySection && etymologyContent) {
       this.currentEntry!.etymology = etymologyContent.replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  // NEW METHOD: Extract all images from the entire block
+  private extractAllImagesFromBlock(block: string): void {
+    const imgMatches = [...block.matchAll(/<img[^>]*src="([^"]*)"[^>]*>/g)];
+    for (const match of imgMatches) {
+      this.currentEntry!.images.push(match[1]);
     }
   }
 
@@ -209,6 +214,7 @@ export interface DictionaryEntry {
   mnemonic: string;
   images: string[];
 }
+
 export interface Example {
   word: string;
   reading: string;

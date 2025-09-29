@@ -37,7 +37,7 @@ async function main() {
   // Print sample entry for verification
    if (entries.length > 0) {
     console.log("\nSample entry:");
-    console.log(JSON.stringify(entries[12], null, 2));
+    console.log(JSON.stringify(entries[88], null, 2));
   }
 }
 
