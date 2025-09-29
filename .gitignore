@@ -3,4 +3,5 @@ output/stardict
 *.json
 *.dict
 *.idx
-*-ifo
+*.ifo
+*.xhtml
