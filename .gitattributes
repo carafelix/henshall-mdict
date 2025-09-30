@@ -1,2 +1,2 @@
 *.xhtml linguist-vendored
-assets linguist-vendored
+assets/* linguist-vendored
