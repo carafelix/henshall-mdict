@@ -23,7 +23,7 @@ async function main() {
   DictionaryExporter.exportTSV(entries, 'output/dictionary.tsv');
   console.log("Exported to TSV");
   
-  DictionaryExporter.exportStarDict(entries, 'output/stardict');
+  DictionaryExporter.exportMdxDict(entries, 'output/stardict');
   console.log("Exported to StarDict format");
   
   DictionaryExporter.exportYoumiTan(entries, 'output/youmitan.json');

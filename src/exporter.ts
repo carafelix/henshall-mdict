@@ -44,7 +44,7 @@ export class DictionaryExporter {
     return field;
   }
 
-  static exportStarDict(entries: DictionaryEntry[], outputDir: string): void {
+  static exportMdxDict(entries: DictionaryEntry[], outputDir: string): void {
     // Create output directory
     try {
       Deno.mkdirSync(outputDir, { recursive: true });
@@ -60,7 +60,7 @@ export class DictionaryExporter {
     for (const entry of entries) {
       if (!entry.kanji) continue;
 
-      const definition = this.formatStarDictDefinition(entry);
+      const definition = this.formatMdxDictDefinition(entry);
       const definitionBytes = new TextEncoder().encode(definition);
       
       // Add to dictionary content
@@ -92,7 +92,7 @@ export class DictionaryExporter {
     }
 
     // Write files
-    Deno.writeFileSync(`${outputDir}/dictionary.dict`, new TextEncoder().encode(dictContent.join('')));
+    Deno.writeFileSync(`${outputDir}/dictionary.txt`, new TextEncoder().encode(dictContent.join('')));
     
     const idxData = new Uint8Array(idxContent.reduce((acc, curr) => acc + curr.length, 0));
     let idxPos = 0;
@@ -109,17 +109,37 @@ bookname=Japanese Dictionary
 wordcount=${entries.length}
 synwordcount=0
 idxfilesize=${idxData.length}
-author=Parser
-description=Japanese dictionary with images
+author=Kenneth G. Henshall
+description=Startdict by Hero Protagonist
 date=${new Date().toISOString().split('T')[0]}
-sametypesequence=m
+sametypesequence=h
 `;
     Deno.writeTextFileSync(`${outputDir}/dictionary.ifo`, infoContent);
   }
 
-  private static formatStarDictDefinition(entry: DictionaryEntry): string {
+  private static formatMdxDictDefinition(entry: DictionaryEntry): string {
     const lines: string[] = [];
-    
+    // return `\n<b>${entry.kanji}</b>${entry.raw
+    // MDX
+    return `${entry.raw
+      .replaceAll(/<span class="textStyle47a">.+<\/span>/g,'')
+      .replaceAll(/<span class="textStyle49">L.<\/span>/g,'')
+      .replaceAll(/<\/?(?!img\b)[^>]+(>|$)/gi, '')
+      .replaceAll('alt="Image" ','')
+      .replaceAll(/ {4}/g,'')
+      .replaceAll(/\n{2,}/g,'\n')
+      .replaceAll(/\/b>\n(.+)/g,'/b>')
+      .split('\n').map((line,i,arr) => {
+        if (i === 1) return `${line}\n<b>${line}</b><br>`
+        return (i < 2 || i == arr.length - 1) ? line : `${line}<br>`
+      })
+      .join('\n')
+    }\n</>`  
+        .replaceAll(/ {4}/g,'')
+        .replaceAll(/\n{2,}/g,'\n')
+        .replaceAll(/\/b>\n(.+)/g,'/b>')
+        
+
     lines.push(`<b>${entry.kanji}</b>`);
     if (entry.reading) lines.push(`Reading: ${entry.reading}`);
     if (entry.meaning) lines.push(`Meaning: ${entry.meaning}`);

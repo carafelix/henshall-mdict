@@ -28,12 +28,13 @@ export class DictionaryParser {
   }
 
   private isValidEntryBlock(block: string): boolean {
-    return block.includes('textStyle48') || block.includes('textStyle46');
+    return block.includes('textStyle48')
   }
 
   private createEmptyEntry(): DictionaryEntry {
     return {
       id: "",
+      raw: "",
       number: "", // Changed from year to number
       level: "",
       kanji: "",
@@ -53,6 +54,7 @@ export class DictionaryParser {
     let etymologyContent = "";
     
     // Extract all images from the entire block first
+    this.currentEntry!.raw = block
     this.extractAllImagesFromBlock(block);
     
     for (const line of lines) {
@@ -203,6 +205,7 @@ export class DictionaryParser {
 
 export interface DictionaryEntry {
   id: string;
+  raw: string;
   number: string; // Changed from year to number
   level: string;
   kanji: string;
